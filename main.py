@@ -1,9 +1,12 @@
 import pygame
 
+#compile again with the console command: auto-py-to-exe
+
 sc = pygame.display.set_mode([540, 360], pygame.RESIZABLE | pygame.SCALED)
 c = pygame.time.Clock()
 dt = 0
 scale = 1
+quit = False
 
 camera = pygame.Vector2(0, 0)
 
@@ -70,6 +73,7 @@ class Player:
         if self.submerged:
             speedPercent = (self.vel.magnitude() / self.maxSp)
             drawSprite = pygame.transform.scale(drawSprite, [drawSprite.get_width() * speedPercent, drawSprite.get_height() * speedPercent])
+            drawSprite.set_alpha(speedPercent * 255)
         sc.blit(drawSprite, [(self.rect.x - camera.x) - (drawSprite.get_width() / 2),
                              (self.rect.y - camera.y) - (drawSprite.get_height() / 2)])
         # pygame.draw.rect(sc, [255, 100, 0], center)
@@ -80,8 +84,7 @@ testPlayer = Player(1, 1)
 while True:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
-            exit()
-            break
+            quit = True
 
     keys = pygame.key.get_pressed()
     sc.fill([255, 255, 255])
@@ -96,3 +99,7 @@ while True:
 
     pygame.display.flip()
     dt = c.tick(60)
+
+    if quit:
+        pygame.quit()
+        break
