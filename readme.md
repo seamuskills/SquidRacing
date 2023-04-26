@@ -5,7 +5,8 @@ This is a game based upon the nintendo game Splatoon, specifically movement in s
 controls
 -
 Left click: accelerate forward <br/>
-Right click: accelerate backward
+Space bar: accelerate backward <br/>
+Right click: charge
 
 run via python script
 -
