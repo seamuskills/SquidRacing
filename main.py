@@ -7,6 +7,7 @@ c = pygame.time.Clock()
 dt = 0
 scale = 1
 quit = False
+inkColor = pygame.Color(0xff, 0xa5, 0x0)
 
 camera = pygame.Vector2(0, 0)
 
@@ -18,6 +19,8 @@ images = {
 
 keys = []
 
+def darken(c, value=50):
+    return c - pygame.Color(value, value, value)
 
 def approach(x, y, amm):
     if x < y:
@@ -32,7 +35,7 @@ class Player:
         self.rect = pygame.Rect(x, y, 16, 16)
         self.vel = pygame.Vector2(0, 0)
         self.accel = 0.004
-        self.maxSp = 0.25
+        self.maxSp = 0.3
         self.angle = 0
         self.submerged = True
         self.directionWanted = 0
@@ -48,14 +51,14 @@ class Player:
         move *= self.directionWanted
 
         if move.magnitude() != 0: move = move.normalize()  # normalize the vector (unless its 0 because that causes an error)
-        self.vel.x = approach(self.vel.x, move.x * self.maxSp, self.accel)  # multiply normalized vector by our acceleration amount and add it to velocity
-        self.vel.y = approach(self.vel.y, move.y * self.maxSp, self.accel)
+        self.vel.x = approach(self.vel.x, move.x * (self.maxSp / (2 - self.submerged)**2), self.accel)  # multiply normalized vector by our acceleration amount and add it to velocity
+        self.vel.y = approach(self.vel.y, move.y * (self.maxSp / (2 - self.submerged)**2), self.accel)
         # if self.vel.magnitude() != 0:
         #     self.vel.x = self.vel.x * min(self.vel.magnitude(),
         #                               self.maxSp) / self.vel.magnitude()  # set the mag of the velocity vector so it's never above maxSp
         #     self.vel.y = self.vel.y * min(self.vel.magnitude(), self.maxSp) / self.vel.magnitude()
-        self.rect.x += (self.vel.x * dt) / (2 - self.submerged)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
-        self.rect.y += (self.vel.y * dt) / (2 - self.submerged)
+        self.rect.x += (self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
+        self.rect.y += (self.vel.y * dt)
 
         camera.x = self.rect.x - (sc.get_width() / 2)  # set camera position
         camera.y = self.rect.y - (sc.get_height() / 2)
@@ -67,7 +70,7 @@ class Player:
         drawSprite = pygame.transform.rotate(images["playerRipple"], self.vel.angle_to(pygame.Vector2(1, 0)))
         if not self.submerged:
             drawSprite = pygame.transform.rotate(images["playerSquid"], self.angle)
-        drawSprite.fill((255, 100, 0, 100), special_flags=pygame.BLEND_MULT)
+        drawSprite.fill(inkColor, special_flags=pygame.BLEND_MULT)
         drawSprite = pygame.transform.scale(drawSprite,
                                             [drawSprite.get_width() * scale, drawSprite.get_height() * scale])
         if self.submerged:
@@ -91,7 +94,7 @@ while True:
 
     bg = pygame.transform.scale(images["testTrack"],
                                 [images["testTrack"].get_width() * scale, images["testTrack"].get_height() * scale])
-    bg.fill((130, 50, 0), special_flags=pygame.BLEND_MULT)
+    bg.fill(darken(inkColor), special_flags=pygame.BLEND_MULT)
     sc.blit(bg, camera * -1)
 
     testPlayer.update()
