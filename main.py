@@ -57,6 +57,7 @@ class Player:
 
         if pygame.mouse.get_pressed(3)[2] and self.cooldown <= 0 and not self.charging:
             self.charge += dt
+            self.charge = min(self.charge,self. chargeMax * 1.1)
         else:
             if self.charge > 0:
                 self.charging = True
