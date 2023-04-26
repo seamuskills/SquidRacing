@@ -80,8 +80,8 @@ class Player:
 
         move *= self.directionWanted
 
-        self.vel.x = approach(self.vel.x, move.x * (self.maxSp / (2 - self.submerged)**2), self.accel)  # multiply normalized vector by our acceleration amount and add it to velocity
-        self.vel.y = approach(self.vel.y, move.y * (self.maxSp / (2 - self.submerged)**2), self.accel)
+        self.vel.x = approach(self.vel.x, move.x * (self.maxSp / (2 - self.submerged)**2), self.accel * (2 - self.submerged)**2)  # multiply normalized vector by our acceleration amount and add it to velocity
+        self.vel.y = approach(self.vel.y, move.y * (self.maxSp / (2 - self.submerged)**2), self.accel * (2 - self.submerged)**2)
         # if self.vel.magnitude() != 0:
         #     self.vel.x = self.vel.x * min(self.vel.magnitude(),
         #                               self.maxSp) / self.vel.magnitude()  # set the mag of the velocity vector so it's never above maxSp
