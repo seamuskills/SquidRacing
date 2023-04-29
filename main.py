@@ -1,13 +1,19 @@
 import pygame
+import pygame_menu
 
-#compile again with the console command: auto-py-to-exe
+#compile again with the console command:
+# pyinstaller --noconfirm --onedir --windowed --add-data "C:/Users/James/PycharmProjects/SquidRacing/images;images/"  "C:/Users/James/PycharmProjects/SquidRacing/main.py"
+# command generated via auto-py-to-exe
 
-sc = pygame.display.set_mode([540, 360], pygame.RESIZABLE | pygame.SCALED)
+screenSize = [540, 360]
+
+pygame.init()
+sc = pygame.display.set_mode(screenSize, pygame.RESIZABLE | pygame.SCALED)
 c = pygame.time.Clock()
 dt = 0
 scale = 1
 quit = False
-inkColor = pygame.Color(0xff, 0xa5, 0x0)
+inkColor = pygame.Color(255, 100, 0)
 
 camera = pygame.Vector2(0, 0)
 
@@ -15,7 +21,9 @@ images = {
     "playerRipple": pygame.image.load("images/ripple.png"),
     "playerSquid": pygame.image.load("images/squid.png"),
     "playerCharge": pygame.image.load("images/chargedSquid.png"),
-    "testTrack": pygame.image.load("images/testTrack.png")
+    "testTrack": pygame.image.load("images/testTrack.png"),
+    "splatFont2": pygame.font.Font("images/Splatfont2.ttf", 30),
+    "splatFont1": pygame.font.Font("images/Splatoon1.otf", 20)
 }
 
 keys = []
@@ -30,12 +38,77 @@ def approach(x, y, amm):
         return max(x - amm, y)
     return y
 
+menuTheme = pygame_menu.Theme(
+    background_color=(255, 165, 0),
+    title_background_color=(56, 56, 244),
+    title_font_color=(255, 165, 0),
+    title_font=images["splatFont2"],
+    widget_font=images["splatFont1"],
+    widget_font_color=(28, 28, 122),
+    title_bar_style=pygame_menu.widgets.MENUBAR_STYLE_TITLE_ONLY_DIAGONAL
+)
+
+def startGame():
+    global menu
+    menu.disable()
+    menu = None
+
+def options():
+    global menu
+    menu.disable()
+    menu = optionsMenu
+    menu.enable()
+
+def optionsBack():
+    global menu
+    menu.disable()
+    menu = mainMenu
+    menu.enable()
+
+def changeControls(k, v):
+    if v == "arrow":
+        pygame_menu.controls.KEY_MOVE_UP = pygame.K_s
+        pygame_menu.controls.KEY_MOVE_DOWN = pygame.K_w
+        pygame_menu.controls.KEY_RIGHT = pygame.K_d
+        pygame_menu.controls.KEY_LEFT = pygame.K_a
+    else:
+        pygame_menu.controls.KEY_MOVE_UP = pygame.K_DOWN
+        pygame_menu.controls.KEY_MOVE_DOWN = pygame.K_UP
+        pygame_menu.controls.KEY_RIGHT = pygame.K_RIGHT
+        pygame_menu.controls.KEY_LEFT = pygame.K_LEFT
+        print("test")
+
+
+def changeColor(v):
+    global inkColor
+    try:
+        inkColor = pygame.Color(v[0], v[1], v[2])
+    except:
+        pass
+
+mainMenu = pygame_menu.Menu("Squid Racing", theme=menuTheme, width=screenSize[0], height=screenSize[1])
+mainMenu.add.button("Start", startGame)
+mainMenu.add.button("Options", options)
+mainMenu.add.button("Quit", pygame_menu.events.EXIT)
+mainMenu.center_content()
+
+optionsMenu = pygame_menu.Menu("Options", theme=menuTheme, width=screenSize[0], height=screenSize[1])
+optionsMenu.add.color_input("ink color: ", pygame_menu.widgets.COLORINPUT_TYPE_RGB, default= (inkColor[0], inkColor[1], inkColor[2]), onchange=changeColor)
+optionsMenu.add.selector("menu controls: ", [("arrow keys", "wasd"), ("wasd", "arrow")], onchange=changeControls)  #not sure why, but I must make it return the other option to the function or else the widget will display the control scheme that is not active.
+optionsMenu.add.button("back", optionsBack)
+
+menu = mainMenu
+
+def getInked(pos):
+    return sc.get_at(
+        [round(pos[0] - camera.x), round(pos[1] - camera.y)]) != pygame.color.Color(
+        (255, 255, 255))
 
 class Player:
     def __init__(self, x, y):
         self.rect = pygame.Rect(x, y, 16, 16)
         self.vel = pygame.Vector2(0, 0)
-        self.accel = 0.004
+        self.accel = 0.008
         self.maxSp = 0.3
         self.angle = 0
         self.submerged = True
@@ -60,15 +133,14 @@ class Player:
             self.charge = min(self.charge,self. chargeMax * 1.1)
         else:
             if self.charge > 0:
+                overInk = getInked([self.rect.x, self.rect.y])
+
                 self.charging = True
-                self.charge -= dt
+                self.charge -= dt if overInk else dt / 4
                 chargePercent = min(self.charge / self.chargeMax, 1)
 
                 if self.charge > self.chargeMax * 0.6:
-                    overInk = sc.get_at(
-                    [round(self.rect.x - camera.x), round(self.rect.y - camera.y)]) != pygame.color.Color(
-                    (255, 255, 255))
-                    self.vel = move * self.maxSp * chargePercent * 2 / (2 - overInk)
+                    self.vel = move * self.maxSp * chargePercent * 2 / (1 if overInk else 1.5)
                 else:
                     self.charging = False
                     self.charge = 0
@@ -124,6 +196,15 @@ while True:
             quit = True
 
     keys = pygame.key.get_pressed()
+
+    if menu is not None:
+        menu.mainloop(sc)
+        continue
+    else:
+        if keys[pygame.K_ESCAPE]:
+            menu = mainMenu
+            menu.enable()
+
     sc.fill([255, 255, 255])
 
     bg = pygame.transform.scale(images["testTrack"],
