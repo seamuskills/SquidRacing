@@ -1,8 +1,10 @@
 import pygame
 import pygame_menu
+import os
+import sys
 
 #compile again with the console command:
-# pyinstaller --noconfirm --onedir --windowed --add-data "C:/Users/James/PycharmProjects/SquidRacing/images;images/"  "C:/Users/James/PycharmProjects/SquidRacing/main.py"
+# pyinstaller --noconfirm --onefile --windowed --add-data "C:/Users/James/PycharmProjects/SquidRacing/images;images/"  "C:/Users/James/PycharmProjects/SquidRacing/main.py"
 # command generated via auto-py-to-exe
 
 screenSize = [540, 360]
@@ -17,13 +19,21 @@ inkColor = pygame.Color(255, 100, 0)
 
 camera = pygame.Vector2(0, 0)
 
+def getPath(relative_path):
+    base_path = ""
+    try:
+        base_path = sys._MEIPASS
+    except:
+        base_path = os.path.abspath(".")
+    return os.path.join(base_path, relative_path)
+
 images = {
-    "playerRipple": pygame.image.load("images/ripple.png"),
-    "playerSquid": pygame.image.load("images/squid.png"),
-    "playerCharge": pygame.image.load("images/chargedSquid.png"),
-    "testTrack": pygame.image.load("images/testTrack.png"),
-    "splatFont2": pygame.font.Font("images/Splatfont2.ttf", 30),
-    "splatFont1": pygame.font.Font("images/Splatoon1.otf", 20)
+    "playerRipple": pygame.image.load(getPath("images/ripple.png")),
+    "playerSquid": pygame.image.load(getPath("images/squid.png")),
+    "playerCharge": pygame.image.load(getPath("images/chargedSquid.png")),
+    "testTrack": pygame.image.load(getPath("images/testTrack.png")),
+    "splatFont2": pygame.font.Font(getPath("images/Splatfont2.ttf"), 30),
+    "splatFont1": pygame.font.Font(getPath("images/Splatoon1.otf"), 20)
 }
 
 keys = []
