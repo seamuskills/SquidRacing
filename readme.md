@@ -15,4 +15,4 @@ double click main.py or type `python main.py` in console after the directory is 
 
 run via exe file
 -
-open `SquidRacing\output\main` then double click main.exe
+open `SquidRacing\dist\main` then double click main.exe
