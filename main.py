@@ -239,6 +239,8 @@ class Player:
         if getInked([self.rect.x, self.rect.y]) == -1 and self.rolling <= 0:
             self.health -= dt
             self.charge = 0
+            self.charging = False
+            self.cooldown = 0
             if self.health <= 0:
                 self.health = self.maxHealth
                 self.rect.x = track["spawn"][0]
