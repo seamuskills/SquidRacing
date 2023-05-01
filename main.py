@@ -159,7 +159,7 @@ class Player:
         self.angle = move.angle_to(pygame.Vector2(1, 0))  # the angle this would make us face
         if move.magnitude() != 0: move = move.normalize()  # normalize the vector (unless its 0 because that causes an error)
 
-        canRoll = abs(self.vel.angle_to((1,0)) - self.angle) > 90 and self.vel.magnitude() > (self.maxSp / 2) and self.rolling <= 100
+        canRoll = abs(self.vel.angle_to((1,0)) - self.angle) > 80 and self.vel.magnitude() > (self.maxSp / 2) and self.rolling <= -50
 
         if canRoll and keys[pygame.K_SPACE]:
             self.rolling = 600

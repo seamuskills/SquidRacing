@@ -8,6 +8,12 @@ Left click: accelerate forward <br/>
 Space bar: accelerate backward <br/>
 Right click: charge
 
+abilities
+-
+charging with right click allows you to move over non-inked surfaces really fast, but beware that you must charge it for atleast .45 seconds!
+
+Squid rolls can be performed by pressing space while having atleast 50% speed and having your mouse atleast 80 degrees different than your current heading. This allows for instant turning at the cost of 15% speed, also lets you jump over uninked surfaces!
+
 run via python script
 -
 make sure to use an environment with pygame installed <br/>
