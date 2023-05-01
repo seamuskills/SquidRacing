@@ -32,6 +32,14 @@ images = {
     "playerSquid": pygame.image.load(getPath("images/squid.png")),
     "playerCharge": pygame.image.load(getPath("images/chargedSquid.png")),
     "testTrack": pygame.image.load(getPath("images/testTrack.png")),
+    "playerRoll": [
+        pygame.image.load(getPath("images/roll/0.png")),
+        pygame.image.load(getPath("images/roll/1.png")),
+        pygame.image.load(getPath("images/roll/2.png")),
+        pygame.image.load(getPath("images/roll/2.5.png")),
+        pygame.image.load(getPath("images/roll/3.png")),
+        pygame.image.load(getPath("images/roll/4.png"))
+    ],
     "splatFont2": pygame.font.Font(getPath("images/Splatfont2.ttf"), 30),
     "splatFont1": pygame.font.Font(getPath("images/Splatoon1.otf"), 20)
 }
@@ -86,7 +94,6 @@ def changeControls(k, v):
         pygame_menu.controls.KEY_MOVE_DOWN = pygame.K_UP
         pygame_menu.controls.KEY_RIGHT = pygame.K_RIGHT
         pygame_menu.controls.KEY_LEFT = pygame.K_LEFT
-        print("test")
 
 
 def changeColor(v):
@@ -127,10 +134,24 @@ class Player:
         self.chargeMax = 450
         self.cooldown = 0
         self.charging = False
+        self.rolling = 0
+        self.rollSpeed = 0
+
+        # roll animation
+        self.rollFrame = 0
+        self.nextFrame = 50
+        self.frameOrder = [0, 1, 2, 4, 5, 4, 3, 1, 0]  #  which image from the array of images is to be used next
 
     def update(self):
         self.submerged = False
         self.cooldown -= dt
+        self.rolling -= dt
+        if self.rolling:
+            self.nextFrame -= dt
+            if self.nextFrame <= 0:
+                self.nextFrame = 50
+                self.rollFrame += 1
+                self.rollFrame %= len(self.frameOrder)
 
         self.directionWanted = (pygame.mouse.get_pressed(3)[0] - keys[pygame.K_SPACE]) * (self.charge < 150)
         move = (pygame.mouse.get_pos() + camera) - pygame.Vector2(self.rect.x,
@@ -138,7 +159,21 @@ class Player:
         self.angle = move.angle_to(pygame.Vector2(1, 0))  # the angle this would make us face
         if move.magnitude() != 0: move = move.normalize()  # normalize the vector (unless its 0 because that causes an error)
 
-        if pygame.mouse.get_pressed(3)[2] and self.cooldown <= 0 and not self.charging:
+        canRoll = abs(self.vel.angle_to((1,0)) - self.angle) > 90 and self.vel.magnitude() > (self.maxSp / 2) and self.rolling <= 100
+
+        if canRoll and keys[pygame.K_SPACE]:
+            self.rolling = 600
+            self.rollSpeed = self.vel.magnitude()*0.86
+            self.vel = move.copy()
+            self.vel.scale_to_length(self.rollSpeed)
+            self.rollFrame = 0
+            self.nextFrame = 100
+
+        if self.rolling > 0:
+            move = self.vel.copy().normalize()
+            self.vel.scale_to_length(self.rollSpeed)
+
+        if pygame.mouse.get_pressed(3)[2] and self.cooldown <= 0 and not self.charging and self.rolling <= 0:
             self.charge += dt
             self.charge = min(self.charge,self. chargeMax * 1.1)
         else:
@@ -162,8 +197,8 @@ class Player:
 
         move *= self.directionWanted
 
-        self.vel.x = approach(self.vel.x, move.x * (self.maxSp / (2 - self.submerged)**2), self.accel * (2 - self.submerged)**2)  # multiply normalized vector by our acceleration amount and add it to velocity
-        self.vel.y = approach(self.vel.y, move.y * (self.maxSp / (2 - self.submerged)**2), self.accel * (2 - self.submerged)**2)
+        self.vel.x = approach(self.vel.x, move.x * (self.maxSp / (2 - (self.rolling > 0 or self.submerged))**2), self.accel * (2 - self.submerged)**2)  # multiply normalized vector by our acceleration amount and add it to velocity
+        self.vel.y = approach(self.vel.y, move.y * (self.maxSp / (2 - (self.rolling > 0 or self.submerged))**2), self.accel * (2 - self.submerged)**2)
         # if self.vel.magnitude() != 0:
         #     self.vel.x = self.vel.x * min(self.vel.magnitude(),
         #                               self.maxSp) / self.vel.magnitude()  # set the mag of the velocity vector so it's never above maxSp
@@ -186,10 +221,14 @@ class Player:
             elif not self.charging:
                 chargePercent = 255 - (min(self.charge / self.chargeMax, 1) * 150)
                 drawSprite.fill([chargePercent, chargePercent, chargePercent], special_flags=pygame.BLEND_MULT)
+
+        if self.rolling >= 0:
+            drawSprite = pygame.transform.rotate(images["playerRoll"][self.frameOrder[self.rollFrame]], self.vel.angle_to(pygame.Vector2(1, 0)))
+
         drawSprite.fill(inkColor, special_flags=pygame.BLEND_MULT)
         drawSprite = pygame.transform.scale(drawSprite,
                                             [drawSprite.get_width() * scale, drawSprite.get_height() * scale])
-        if self.submerged:
+        if self.submerged and not self.rolling >= 0:
             speedPercent = (self.vel.magnitude() / self.maxSp)
             drawSprite = pygame.transform.scale(drawSprite, [drawSprite.get_width() * speedPercent, drawSprite.get_height() * speedPercent])
             drawSprite.set_alpha(speedPercent * 255)
