@@ -2,6 +2,7 @@ import pygame
 import pygame_menu
 import os
 import sys
+import math
 
 #compile again with the console command:
 # pyinstaller --noconfirm --onefile --windowed --add-data "C:/Users/James/PycharmProjects/SquidRacing/images;images/"  "C:/Users/James/PycharmProjects/SquidRacing/main.py"
@@ -16,6 +17,10 @@ dt = 0
 scale = 1
 quit = False
 inkColor = pygame.Color(255, 100, 0)
+mode = 0  # 0 = test, 1 = time trial?, 2 = race ai?
+
+bgEnemy = 0
+bgAlly = 0
 
 camera = pygame.Vector2(0, 0)
 
@@ -31,7 +36,6 @@ images = {
     "playerRipple": pygame.image.load(getPath("images/ripple.png")),
     "playerSquid": pygame.image.load(getPath("images/squid.png")),
     "playerCharge": pygame.image.load(getPath("images/chargedSquid.png")),
-    "testTrack": pygame.image.load(getPath("images/testTrack.png")),
     "playerRoll": [
         pygame.image.load(getPath("images/roll/0.png")),
         pygame.image.load(getPath("images/roll/1.png")),
@@ -40,14 +44,30 @@ images = {
         pygame.image.load(getPath("images/roll/3.png")),
         pygame.image.load(getPath("images/roll/4.png"))
     ],
+    "tracks": {  # format: [ally ink, enemy ink]
+        "test": {
+            "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha()],
+            "spawn": [122, 346]
+        }
+    },
     "splatFont2": pygame.font.Font(getPath("images/Splatfont2.ttf"), 30),
     "splatFont1": pygame.font.Font(getPath("images/Splatoon1.otf"), 20)
 }
 
+track = None
+
 keys = []
 
-def darken(c, value=50):
-    return c - pygame.Color(value, value, value)
+def getDarkened(c, value=50):
+    return c - pygame.Color(value, value, value, 0)
+
+def getInvert(c):
+    invert = pygame.Color(255, 255, 255) - c
+    invert.a = 255
+    return invert
+
+def getAdjecent(c):
+    return c.lerp(pygame.Color(0, 0, 0), 0.5)
 
 def approach(x, y, amm):
     if x < y:
@@ -100,6 +120,7 @@ def changeColor(v):
     global inkColor
     try:
         inkColor = pygame.Color(v[0], v[1], v[2])
+        recolorStage(inkColor)
     except:
         pass
 
@@ -117,9 +138,15 @@ optionsMenu.add.button("back", optionsBack)
 menu = mainMenu
 
 def getInked(pos):
-    return sc.get_at(
-        [round(pos[0] - camera.x), round(pos[1] - camera.y)]) != pygame.color.Color(
-        (255, 255, 255))
+    color = sc.get_at(
+        [round(pos[0] - camera.x), round(pos[1] - camera.y)])
+    if color == inkColor or color == getDarkened(inkColor):  # player color
+        return 1
+    if color == getInvert(inkColor) or color == getDarkened(getInvert(inkColor)):  # enemy color
+        return -1
+    if color == getAdjecent(inkColor) or color == getDarkened(getAdjecent(inkColor)):  # jump pad color
+        return 2
+    return 0
 
 class Player:
     def __init__(self, x, y):
@@ -136,16 +163,21 @@ class Player:
         self.charging = False
         self.rolling = 0
         self.rollSpeed = 0
+        self.maxRoll = 600
 
         # roll animation
         self.rollFrame = 0
         self.nextFrame = 50
         self.frameOrder = [0, 1, 2, 4, 5, 4, 3, 1, 0]  #  which image from the array of images is to be used next
 
+        self.health = 500
+        self.maxHealth = 500
+
     def update(self):
         self.submerged = False
         self.cooldown -= dt
         self.rolling -= dt
+
         if self.rolling:
             self.nextFrame -= dt
             if self.nextFrame <= 0:
@@ -162,7 +194,7 @@ class Player:
         canRoll = abs(self.vel.angle_to((1,0)) - self.angle) > 80 and self.vel.magnitude() > (self.maxSp / 2) and self.rolling <= -50
 
         if canRoll and keys[pygame.K_SPACE]:
-            self.rolling = 600
+            self.rolling = self.maxRoll
             self.rollSpeed = self.vel.magnitude()*0.86
             self.vel = move.copy()
             self.vel.scale_to_length(self.rollSpeed)
@@ -170,7 +202,7 @@ class Player:
             self.nextFrame = 100
 
         if self.rolling > 0:
-            move = self.vel.copy().normalize()
+            if self.vel.magnitude() != 0: move = self.vel.copy().normalize()
             self.vel.scale_to_length(self.rollSpeed)
 
         if pygame.mouse.get_pressed(3)[2] and self.cooldown <= 0 and not self.charging and self.rolling <= 0:
@@ -181,19 +213,17 @@ class Player:
                 overInk = getInked([self.rect.x, self.rect.y])
 
                 self.charging = True
-                self.charge -= dt if overInk else dt / 4
+                self.charge -= dt if overInk == 1 else dt / 4
                 chargePercent = min(self.charge / self.chargeMax, 1)
 
                 if self.charge > self.chargeMax * 0.6:
-                    self.vel = move * self.maxSp * chargePercent * 2 / (1 if overInk else 1.5)
+                    self.vel = move * self.maxSp * chargePercent * 2 / (1 if overInk == 1 else 1.5)
                 else:
                     self.charging = False
                     self.charge = 0
                     self.cooldown = 1000
             else:
-                self.submerged = sc.get_at(
-                    [round(self.rect.x - camera.x), round(self.rect.y - camera.y)]) != pygame.color.Color(
-                    (255, 255, 255))
+                self.submerged = getInked([self.rect[0], self.rect[1]]) == 1
 
         move *= self.directionWanted
 
@@ -205,6 +235,19 @@ class Player:
         #     self.vel.y = self.vel.y * min(self.vel.magnitude(), self.maxSp) / self.vel.magnitude()
         self.rect.x += (self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
         self.rect.y += (self.vel.y * dt)
+
+        if getInked([self.rect.x, self.rect.y]) == -1 and self.rolling <= 0:
+            self.health -= dt
+            self.charge = 0
+            if self.health <= 0:
+                self.health = self.maxHealth
+                self.rect.x = track["spawn"][0]
+                self.rect.y = track["spawn"][1]
+                self.vel.x = 0
+                self.vel.y = 0
+        else:
+            self.health += dt / 2
+            self.health = min(self.health, self.maxHealth)
 
         camera.x = self.rect.x - (sc.get_width() / 2)  # set camera position
         camera.y = self.rect.y - (sc.get_height() / 2)
@@ -238,6 +281,22 @@ class Player:
 
 
 testPlayer = Player(1, 1)
+track = images["tracks"]["test"]
+
+def recolorStage(c):
+    global bgEnemy
+    global bgAlly
+    bgEnemy = pygame.transform.scale(track["images"][1],
+                                     [track["images"][1].get_width() * scale,
+                                      track["images"][1].get_height() * scale])
+    bgEnemy.fill(getInvert(inkColor), special_flags=pygame.BLEND_MULT)
+
+    bgAlly = pygame.transform.scale(track["images"][0],
+                                    [track["images"][0].get_width() * scale,
+                                     track["images"][0].get_height() * scale])
+    bgAlly.fill(getDarkened(inkColor), special_flags=pygame.BLEND_MULT)
+
+recolorStage(inkColor)
 
 while True:
     for event in pygame.event.get():
@@ -256,10 +315,8 @@ while True:
 
     sc.fill([255, 255, 255])
 
-    bg = pygame.transform.scale(images["testTrack"],
-                                [images["testTrack"].get_width() * scale, images["testTrack"].get_height() * scale])
-    bg.fill(darken(inkColor), special_flags=pygame.BLEND_MULT)
-    sc.blit(bg, camera * -1)
+    sc.blit(bgEnemy, camera * -1)
+    sc.blit(bgAlly, camera * -1)
 
     testPlayer.update()
     testPlayer.draw()
