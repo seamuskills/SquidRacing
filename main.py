@@ -2,7 +2,7 @@ import pygame
 import pygame_menu
 import os
 import sys
-import math
+import colorsys
 
 #compile again with the console command:
 # pyinstaller --noconfirm --onefile --windowed --add-data "C:/Users/James/PycharmProjects/SquidRacing/images;images/"  "C:/Users/James/PycharmProjects/SquidRacing/main.py"
@@ -21,6 +21,7 @@ mode = 0  # 0 = test, 1 = time trial?, 2 = race ai?
 
 bgEnemy = 0
 bgAlly = 0
+bgJump = 0
 
 camera = pygame.Vector2(0, 0)
 
@@ -46,7 +47,7 @@ images = {
     ],
     "tracks": {  # format: [ally ink, enemy ink]
         "test": {
-            "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha()],
+            "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackJump.png")).convert_alpha()],
             "spawn": [122, 346]
         }
     },
@@ -67,7 +68,10 @@ def getInvert(c):
     return invert
 
 def getAdjecent(c):
-    return c.lerp(pygame.Color(0, 0, 0), 0.5)
+    color = c.hsva
+    color = colorsys.hsv_to_rgb(((color[0] + 50) % 360) / 360, color[1]/100, color[2]/100)
+    color = [color[0]*255, color[1]*255, color[2]*255]
+    return pygame.Color(color)
 
 def approach(x, y, amm):
     if x < y:
@@ -172,6 +176,7 @@ class Player:
 
         self.health = 500
         self.maxHealth = 500
+        self.rollMove = pygame.Vector2(0, 0)
 
     def update(self):
         self.submerged = False
@@ -200,9 +205,19 @@ class Player:
             self.vel.scale_to_length(self.rollSpeed)
             self.rollFrame = 0
             self.nextFrame = 100
+            self.rollMove = self.vel.copy().normalize()
 
-        if self.rolling > 0:
-            if self.vel.magnitude() != 0: move = self.vel.copy().normalize()
+        if getInked([self.rect.x, self.rect.y]) == 2 and self.rolling < -200 and self.vel.magnitude() > 0:
+            self.rolling = self.maxRoll * 1.5
+            self.rollSpeed = self.vel.magnitude() * 0.9
+            self.vel = move.copy()
+            self.vel.scale_to_length(self.rollSpeed)
+            self.rollFrame = 0
+            self.nextFrame = 100
+            self.rollMove = self.vel.copy().normalize()
+
+        if self.rolling > 0 and self.vel.magnitude() > 0:
+            move = self.rollMove.copy()
             self.vel.scale_to_length(self.rollSpeed)
 
         if pygame.mouse.get_pressed(3)[2] and self.cooldown <= 0 and not self.charging and self.rolling <= 0:
@@ -288,15 +303,21 @@ track = images["tracks"]["test"]
 def recolorStage(c):
     global bgEnemy
     global bgAlly
+    global bgJump
     bgEnemy = pygame.transform.scale(track["images"][1],
                                      [track["images"][1].get_width() * scale,
                                       track["images"][1].get_height() * scale])
-    bgEnemy.fill(getInvert(inkColor), special_flags=pygame.BLEND_MULT)
+    bgEnemy.fill(getInvert(c), special_flags=pygame.BLEND_MULT)
 
     bgAlly = pygame.transform.scale(track["images"][0],
                                     [track["images"][0].get_width() * scale,
                                      track["images"][0].get_height() * scale])
-    bgAlly.fill(getDarkened(inkColor), special_flags=pygame.BLEND_MULT)
+    bgAlly.fill(getDarkened(c), special_flags=pygame.BLEND_MULT)
+
+    bgJump = pygame.transform.scale(track["images"][2],
+                                    [track["images"][2].get_width() * scale,
+                                     track["images"][2].get_height() * scale])
+    bgJump.fill(getAdjecent(c), special_flags=pygame.BLEND_MULT)
 
 recolorStage(inkColor)
 
@@ -319,6 +340,7 @@ while True:
 
     sc.blit(bgEnemy, camera * -1)
     sc.blit(bgAlly, camera * -1)
+    sc.blit(bgJump, camera * -1)
 
     testPlayer.update()
     testPlayer.draw()
