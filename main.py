@@ -5,7 +5,7 @@ import sys
 import colorsys
 
 #compile again with the console command:
-# pyinstaller --noconfirm --onefile --windowed --add-data "C:/Users/James/PycharmProjects/SquidRacing/images;images/"  "C:/Users/James/PycharmProjects/SquidRacing/main.py"
+# pyinstaller --noconfirm --onefile --windowed --add-data "./images;images/"  "./main.py"
 # command generated via auto-py-to-exe
 
 screenSize = [540, 360]
@@ -37,6 +37,7 @@ images = {
     "playerRipple": pygame.image.load(getPath("images/ripple.png")),
     "playerSquid": pygame.image.load(getPath("images/squid.png")),
     "playerCharge": pygame.image.load(getPath("images/chargedSquid.png")),
+    "damageOverlay": pygame.image.load(getPath("images/inkOverlay.png")),
     "playerRoll": [
         pygame.image.load(getPath("images/roll/0.png")),
         pygame.image.load(getPath("images/roll/1.png")),
@@ -45,6 +46,7 @@ images = {
         pygame.image.load(getPath("images/roll/3.png")),
         pygame.image.load(getPath("images/roll/4.png"))
     ],
+    "respawnArrow": pygame.image.load(getPath("images/respawnArrow.png")),
     "tracks": {  # format: [ally ink, enemy ink]
         "test": {
             "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackJump.png")).convert_alpha()],
@@ -72,6 +74,9 @@ def getAdjecent(c):
     color = colorsys.hsv_to_rgb(((color[0] + 50) % 360) / 360, color[1]/100, color[2]/100)
     color = [color[0]*255, color[1]*255, color[2]*255]
     return pygame.Color(color)
+
+overlay = images["damageOverlay"].convert_alpha()
+overlay.fill(getInvert(inkColor), special_flags=pygame.BLEND_MULT)
 
 def approach(x, y, amm):
     if x < y:
@@ -122,9 +127,12 @@ def changeControls(k, v):
 
 def changeColor(v):
     global inkColor
+    global overlay
     try:
         inkColor = pygame.Color(v[0], v[1], v[2])
         recolorStage(inkColor)
+        overlay = images["damageOverlay"].convert_alpha()
+        overlay.fill(getInvert(inkColor), special_flags=pygame.BLEND_MULT)
     except:
         pass
 
@@ -142,8 +150,11 @@ optionsMenu.add.button("back", optionsBack)
 menu = mainMenu
 
 def getInked(pos):
-    color = sc.get_at(
+    try:
+        color = sc.get_at(
         [round(pos[0] - camera.x), round(pos[1] - camera.y)])
+    except:
+        return 0
     if color == inkColor or color == getDarkened(inkColor):  # player color
         return 1
     if color == getInvert(inkColor) or color == getDarkened(getInvert(inkColor)):  # enemy color
@@ -177,11 +188,26 @@ class Player:
         self.health = 500
         self.maxHealth = 500
         self.rollMove = pygame.Vector2(0, 0)
+        self.dead = False
+        self.respawnTime = 0
+        self.maxRespawn = 5000
 
     def update(self):
         self.submerged = False
         self.cooldown -= dt
         self.rolling -= dt
+
+        if self.dead:
+            self.respawnTime -= dt
+            if self.respawnTime <= 0:
+                self.health = self.maxHealth
+                self.rect.x = track["spawn"][0]
+                self.rect.y = track["spawn"][1]
+                self.vel.x = 0
+                self.vel.y = 0
+                self.dead = False
+            else:
+                return
 
         if self.rolling:
             self.nextFrame -= dt
@@ -257,11 +283,8 @@ class Player:
             self.charging = False
             self.cooldown = 0
             if self.health <= 0:
-                self.health = self.maxHealth
-                self.rect.x = track["spawn"][0]
-                self.rect.y = track["spawn"][1]
-                self.vel.x = 0
-                self.vel.y = 0
+                self.dead = True
+                self.respawnTime = self.maxRespawn
         else:
             self.health += dt / 2
             self.health = min(self.health, self.maxHealth)
@@ -270,6 +293,17 @@ class Player:
         camera.y = self.rect.y - (sc.get_height() / 2)
 
     def draw(self):
+        damage = overlay
+        damage.set_alpha(round((1- (self.health / self.maxHealth))*255))
+        sc.blit(damage, [0, 0])
+        if self.dead:
+            respawnPercent = self.respawnTime / self.maxRespawn
+            arrow = pygame.transform.scale(images["respawnArrow"], [images["respawnArrow"].get_width() * scale, images["respawnArrow"].get_height() * scale])
+            arrowTint = arrow.copy()
+            arrowTint.fill(inkColor, special_flags=pygame.BLEND_MULT)
+            sc.blit(arrowTint, [screenSize[0] * 0.8, screenSize[1] * 0.75])
+            sc.blit(arrow, [screenSize[0] * 0.8, screenSize[1] * 0.75], [0, 0, arrow.get_width() * respawnPercent, arrow.get_height()])
+            return
         center = self.rect.copy()
         center.x -= center.w / 2
         center.y -= center.h / 2
@@ -307,7 +341,7 @@ def recolorStage(c):
     bgEnemy = pygame.transform.scale(track["images"][1],
                                      [track["images"][1].get_width() * scale,
                                       track["images"][1].get_height() * scale])
-    bgEnemy.fill(getInvert(c), special_flags=pygame.BLEND_MULT)
+    bgEnemy.fill(getDarkened(getInvert(c)), special_flags=pygame.BLEND_MULT)
 
     bgAlly = pygame.transform.scale(track["images"][0],
                                     [track["images"][0].get_width() * scale,
