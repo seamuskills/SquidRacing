@@ -3,7 +3,6 @@ import pygame_menu
 import os
 import sys
 import colorsys
-
 #compile again with the console command:
 # pyinstaller --noconfirm --onefile --windowed --add-data "./images;images/"  "./main.py"
 # command generated via auto-py-to-exe
@@ -18,6 +17,7 @@ scale = 1
 quit = False
 inkColor = pygame.Color(255, 100, 0)
 mode = 0  # 0 = test, 1 = time trial?, 2 = race ai?
+cameraStyle = 0  # 0 = player centered, 1 = dynamic
 
 bgEnemy = 0
 bgAlly = 0
@@ -124,6 +124,9 @@ def changeControls(k, v):
         pygame_menu.controls.KEY_RIGHT = pygame.K_RIGHT
         pygame_menu.controls.KEY_LEFT = pygame.K_LEFT
 
+def cameraControl(k, v):
+    global cameraStyle
+    cameraStyle = v
 
 def changeColor(v):
     global inkColor
@@ -145,6 +148,7 @@ mainMenu.center_content()
 optionsMenu = pygame_menu.Menu("Options", theme=menuTheme, width=screenSize[0], height=screenSize[1])
 optionsMenu.add.color_input("ink color: ", pygame_menu.widgets.COLORINPUT_TYPE_RGB, default= (inkColor[0], inkColor[1], inkColor[2]), onchange=changeColor)
 optionsMenu.add.selector("menu controls: ", [("arrow keys", "wasd"), ("wasd", "arrow")], onchange=changeControls)  #not sure why, but I must make it return the other option to the function or else the widget will display the control scheme that is not active.
+optionsMenu.add.selector("camera system: ", [("player centered", False), ("direction dynamic", True)], onchange=cameraControl)
 optionsMenu.add.button("back", optionsBack)
 
 menu = mainMenu
@@ -289,8 +293,10 @@ class Player:
             self.health += dt / 2
             self.health = min(self.health, self.maxHealth)
 
-        camera.x = self.rect.x - (sc.get_width() / 2)  # set camera position
-        camera.y = self.rect.y - (sc.get_height() / 2)
+        screenMouse = pygame.mouse.get_pos() + camera
+
+        camera.x = self.rect.x - (sc.get_width() / 2) if cameraStyle == 0 else ((self.rect.x + screenMouse[0]) / 2) - (sc.get_width() / 2)  # set camera position
+        camera.y = self.rect.y - (sc.get_height() / 2) if cameraStyle == 0 else ((self.rect.y + screenMouse[1]) / 2) - (sc.get_height() / 2)
 
     def draw(self):
         damage = overlay
@@ -331,7 +337,7 @@ class Player:
         # pygame.draw.rect(sc, [255, 100, 0], center)
 
 
-testPlayer = Player(1, 1)
+player = Player(1, 1)
 track = images["tracks"]["test"]
 
 def recolorStage(c):
@@ -376,8 +382,8 @@ while True:
     sc.blit(bgAlly, camera * -1)
     sc.blit(bgJump, camera * -1)
 
-    testPlayer.update()
-    testPlayer.draw()
+    player.update()
+    player.draw()
 
     pygame.display.flip()
     dt = c.tick(60)
