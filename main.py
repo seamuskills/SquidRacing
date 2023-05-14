@@ -11,6 +11,7 @@ screenSize = [540, 360]
 
 pygame.init()
 sc = pygame.display.set_mode(screenSize, pygame.RESIZABLE | pygame.SCALED)
+pygame.display.set_caption("Squid Racing    loading")
 c = pygame.time.Clock()
 dt = 0
 scale = 1
@@ -50,12 +51,15 @@ images = {
     "tracks": {  # format: [ally ink, enemy ink]
         "test": {
             "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackJump.png")).convert_alpha()],
-            "spawn": [122, 346]
+            "spawn": [122, 346],
+            "displayName": "testing grounds"
         }
     },
     "splatFont2": pygame.font.Font(getPath("images/Splatfont2.ttf"), 30),
     "splatFont1": pygame.font.Font(getPath("images/Splatoon1.otf"), 20)
 }
+
+pygame.display.set_icon(images["playerSquid"])
 
 track = None
 
@@ -369,9 +373,11 @@ while True:
     keys = pygame.key.get_pressed()
 
     if menu is not None:
+        pygame.display.set_caption("Squid Racing    Menu")
         menu.mainloop(sc)
         continue
     else:
+        pygame.display.set_caption("Squid Racing    " + track["displayName"])
         if keys[pygame.K_ESCAPE]:
             menu = mainMenu
             menu.enable()
