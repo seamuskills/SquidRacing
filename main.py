@@ -47,6 +47,7 @@ images = {
         pygame.image.load(getPath("images/roll/3.png")),
         pygame.image.load(getPath("images/roll/4.png"))
     ],
+    "spawnDrone": pygame.image.load(getPath("images/drone.png")),
     "respawnArrow": pygame.image.load(getPath("images/respawnArrow.png")),
     "tracks": {  # format: [ally ink, enemy ink]
         "test": {
@@ -199,21 +200,48 @@ class Player:
         self.dead = False
         self.respawnTime = 0
         self.maxRespawn = 5000
+        self.dronePos = pygame.Vector2(0, 0)
+        self.droneTime = 0
+        self.maxDroneTime = 2500
+        self.droneLaunch = 1200
+        self.lastSafePos = pygame.Vector2(x, y)
+        self.droneDir = 0
 
     def update(self):
         self.submerged = False
         self.cooldown -= dt
         self.rolling -= dt
+        self.droneTime -= dt
+
+        if getInked([self.rect.x, self.rect.y]) == 1 or getInked([self.rect.x, self.rect.y]) == 0:
+            self.lastSafePos = pygame.Vector2(self.rect.x, self.rect.y)
 
         if self.dead:
+            if self.droneLaunch > self.droneTime > 0:
+                move = ((pygame.mouse.get_pos() + camera) - self.dronePos)
+                self.dead = False
+                self.rolling = 500
+                self.rollSpeed = self.maxSp
+                self.vel = move.copy()
+                self.vel.scale_to_length(self.rollSpeed)
+                self.rollFrame = 0
+                self.nextFrame = 100
+                self.rollMove = move.copy()
+                self.rect = pygame.rect.Rect(self.dronePos.x, self.dronePos.y, self.rect.w, self.rect.h)
+
+            if self.droneTime > 0:
+                camera.x = self.dronePos.x - (sc.get_width() / 2)  # set camera position
+                camera.y = self.dronePos.y - (sc.get_height() / 2)
+                if self.droneTime > self.droneLaunch:
+                    self.droneDir = ((pygame.mouse.get_pos() + camera) - self.dronePos).angle_to([1, 0])
+
             self.respawnTime -= dt
-            if self.respawnTime <= 0:
+            if self.respawnTime <= 0 and self.droneTime < 0:
                 self.health = self.maxHealth
-                self.rect.x = track["spawn"][0]
-                self.rect.y = track["spawn"][1]
                 self.vel.x = 0
                 self.vel.y = 0
-                self.dead = False
+                self.droneTime = self.maxDroneTime
+                self.dronePos = self.lastSafePos.copy()
             else:
                 return
 
@@ -248,7 +276,7 @@ class Player:
             self.vel.scale_to_length(self.rollSpeed)
             self.rollFrame = 0
             self.nextFrame = 100
-            self.rollMove = self.vel.copy().normalize()
+            self.rollMove = move.copy()
 
         if self.rolling > 0 and self.vel.magnitude() > 0:
             move = self.rollMove.copy()
@@ -274,10 +302,10 @@ class Player:
             else:
                 self.submerged = getInked([self.rect[0], self.rect[1]]) == 1
 
-        move *= self.directionWanted
+        if self.rolling <= 0: move *= self.directionWanted
 
-        self.vel.x = approach(self.vel.x, move.x * (self.maxSp / (2 - (self.rolling > 0 or self.submerged))**2), self.accel * (2 - self.submerged)**2)  # multiply normalized vector by our acceleration amount and add it to velocity
-        self.vel.y = approach(self.vel.y, move.y * (self.maxSp / (2 - (self.rolling > 0 or self.submerged))**2), self.accel * (2 - self.submerged)**2)
+        if self.rolling <= 0: self.vel.x = approach(self.vel.x, move.x * (self.maxSp / (2 - (self.rolling > 0 or self.submerged))**2), self.accel * (2 - self.submerged)**2)  # multiply normalized vector by our acceleration amount and add it to velocity
+        if self.rolling <= 0: self.vel.y = approach(self.vel.y, move.y * (self.maxSp / (2 - (self.rolling > 0 or self.submerged))**2), self.accel * (2 - self.submerged)**2)
         # if self.vel.magnitude() != 0:
         #     self.vel.x = self.vel.x * min(self.vel.magnitude(),
         #                               self.maxSp) / self.vel.magnitude()  # set the mag of the velocity vector so it's never above maxSp
@@ -293,6 +321,7 @@ class Player:
             if self.health <= 0:
                 self.dead = True
                 self.respawnTime = self.maxRespawn
+                self.droneTime = 0
         else:
             self.health += dt / 2
             self.health = min(self.health, self.maxHealth)
@@ -302,21 +331,30 @@ class Player:
         camera.x = self.rect.x - (sc.get_width() / 2) if cameraStyle == 0 else ((self.rect.x + screenMouse[0]) / 2) - (sc.get_width() / 2)  # set camera position
         camera.y = self.rect.y - (sc.get_height() / 2) if cameraStyle == 0 else ((self.rect.y + screenMouse[1]) / 2) - (sc.get_height() / 2)
 
+    def drawDrone(self):
+        if self.droneTime > 0:
+            drone = pygame.transform.scale(images["spawnDrone"], [images["spawnDrone"].get_width() * scale, images["spawnDrone"].get_height() * scale])
+            drone = pygame.transform.rotate(drone, self.droneDir)
+
+            sc.blit(drone, [(self.dronePos.x - camera.x - drone.get_width()/2), (self.dronePos.y - camera.y - drone.get_height()/2)])
+
     def draw(self):
         damage = overlay
         damage.set_alpha(round((1- (self.health / self.maxHealth))*255))
         sc.blit(damage, [0, 0])
         if self.dead:
-            respawnPercent = self.respawnTime / self.maxRespawn
-            arrow = pygame.transform.scale(images["respawnArrow"], [images["respawnArrow"].get_width() * scale, images["respawnArrow"].get_height() * scale])
-            arrowTint = arrow.copy()
-            arrowTint.fill(inkColor, special_flags=pygame.BLEND_MULT)
-            sc.blit(arrowTint, [screenSize[0] * 0.8, screenSize[1] * 0.75])
-            sc.blit(arrow, [screenSize[0] * 0.8, screenSize[1] * 0.75], [0, 0, arrow.get_width() * respawnPercent, arrow.get_height()])
+            if self.droneTime <= 0:
+                respawnPercent = self.respawnTime / self.maxRespawn
+                arrow = pygame.transform.scale(images["respawnArrow"], [images["respawnArrow"].get_width() * scale, images["respawnArrow"].get_height() * scale])
+                arrowTint = arrow.copy()
+                arrowTint.fill(inkColor, special_flags=pygame.BLEND_MULT)
+                sc.blit(arrowTint, [screenSize[0] * 0.8, screenSize[1] * 0.75])
+                sc.blit(arrow, [screenSize[0] * 0.8, screenSize[1] * 0.75], [0, 0, arrow.get_width() * respawnPercent, arrow.get_height()])
+            self.drawDrone()
             return
-        center = self.rect.copy()
-        center.x -= center.w / 2
-        center.y -= center.h / 2
+        # center = self.rect.copy()
+        # center.x -= center.w / 2
+        # center.y -= center.h / 2
         drawSprite = pygame.transform.rotate(images["playerRipple"], self.vel.angle_to(pygame.Vector2(1, 0)))
         if not self.submerged:
             drawSprite = pygame.transform.rotate(images["playerSquid"], self.angle)
@@ -339,6 +377,7 @@ class Player:
         sc.blit(drawSprite, [(self.rect.x - camera.x) - (drawSprite.get_width() / 2),
                              (self.rect.y - camera.y) - (drawSprite.get_height() / 2)])
         # pygame.draw.rect(sc, [255, 100, 0], center)
+        self.drawDrone()
 
 
 player = Player(1, 1)
@@ -375,6 +414,7 @@ while True:
     if menu is not None:
         pygame.display.set_caption("Squid Racing    Menu")
         menu.mainloop(sc)
+        dt = 0
         continue
     else:
         pygame.display.set_caption("Squid Racing    " + track["displayName"])
