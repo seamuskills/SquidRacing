@@ -14,7 +14,6 @@ sc = pygame.display.set_mode(screenSize, pygame.RESIZABLE | pygame.SCALED)
 pygame.display.set_caption("Squid Racing    loading")
 c = pygame.time.Clock()
 dt = 0
-scale = 1
 quit = False
 inkColor = pygame.Color(255, 100, 0)
 mode = 0  # 0 = test, 1 = time trial?, 2 = race ai?
@@ -333,7 +332,7 @@ class Player:
 
     def drawDrone(self):
         if self.droneTime > 0:
-            drone = pygame.transform.scale(images["spawnDrone"], [images["spawnDrone"].get_width() * scale, images["spawnDrone"].get_height() * scale])
+            drone = images["spawnDrone"].copy()
             drone = pygame.transform.rotate(drone, self.droneDir)
 
             sc.blit(drone, [(self.dronePos.x - camera.x - drone.get_width()/2), (self.dronePos.y - camera.y - drone.get_height()/2)])
@@ -345,7 +344,7 @@ class Player:
         if self.dead:
             if self.droneTime <= 0:
                 respawnPercent = self.respawnTime / self.maxRespawn
-                arrow = pygame.transform.scale(images["respawnArrow"], [images["respawnArrow"].get_width() * scale, images["respawnArrow"].get_height() * scale])
+                arrow = images["respawnArrow"].copy()
                 arrowTint = arrow.copy()
                 arrowTint.fill(inkColor, special_flags=pygame.BLEND_MULT)
                 sc.blit(arrowTint, [screenSize[0] * 0.8, screenSize[1] * 0.75])
@@ -368,8 +367,6 @@ class Player:
             drawSprite = pygame.transform.rotate(images["playerRoll"][self.frameOrder[self.rollFrame]], self.vel.angle_to(pygame.Vector2(1, 0)))
 
         drawSprite.fill(inkColor, special_flags=pygame.BLEND_MULT)
-        drawSprite = pygame.transform.scale(drawSprite,
-                                            [drawSprite.get_width() * scale, drawSprite.get_height() * scale])
         if self.submerged and not self.rolling >= 0:
             speedPercent = (self.vel.magnitude() / self.maxSp)
             drawSprite = pygame.transform.scale(drawSprite, [drawSprite.get_width() * speedPercent, drawSprite.get_height() * speedPercent])
@@ -387,19 +384,13 @@ def recolorStage(c):
     global bgEnemy
     global bgAlly
     global bgJump
-    bgEnemy = pygame.transform.scale(track["images"][1],
-                                     [track["images"][1].get_width() * scale,
-                                      track["images"][1].get_height() * scale])
+    bgEnemy = track["images"][1].copy()
     bgEnemy.fill(getDarkened(getInvert(c)), special_flags=pygame.BLEND_MULT)
 
-    bgAlly = pygame.transform.scale(track["images"][0],
-                                    [track["images"][0].get_width() * scale,
-                                     track["images"][0].get_height() * scale])
+    bgAlly = track["images"][0].copy()
     bgAlly.fill(getDarkened(c), special_flags=pygame.BLEND_MULT)
 
-    bgJump = pygame.transform.scale(track["images"][2],
-                                    [track["images"][2].get_width() * scale,
-                                     track["images"][2].get_height() * scale])
+    bgJump = track["images"][2].copy()
     bgJump.fill(getAdjecent(c), special_flags=pygame.BLEND_MULT)
 
 recolorStage(inkColor)
