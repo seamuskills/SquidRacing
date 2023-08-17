@@ -198,7 +198,7 @@ class Player:
         self.rollMove = pygame.Vector2(0, 0)
         self.dead = False
         self.respawnTime = 0
-        self.maxRespawn = 5000
+        self.maxRespawn = 1500
         self.dronePos = pygame.Vector2(0, 0)
         self.droneTime = 0
         self.maxDroneTime = 2500
@@ -322,7 +322,7 @@ class Player:
                 self.respawnTime = self.maxRespawn
                 self.droneTime = 0
         else:
-            self.health += dt / 2
+            self.health += dt / 4
             self.health = min(self.health, self.maxHealth)
 
         screenMouse = pygame.mouse.get_pos() + camera
@@ -405,7 +405,8 @@ while True:
     if menu is not None:
         pygame.display.set_caption("Squid Racing    Menu")
         menu.mainloop(sc)
-        dt = 0
+        if menu is None:
+            player = Player(track["spawn"][0],track["spawn"][1])
         continue
     else:
         pygame.display.set_caption("Squid Racing    " + track["displayName"])
