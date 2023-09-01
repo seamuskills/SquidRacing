@@ -1,3 +1,5 @@
+import random
+
 import pygame
 import pygame_menu
 import os
@@ -48,6 +50,7 @@ images = {
     ],
     "spawnDrone": pygame.image.load(getPath("images/drone.png")),
     "respawnArrow": pygame.image.load(getPath("images/respawnArrow.png")),
+    "can": pygame.image.load(getPath("images/specialCan.png")),
     "tracks": {  # format: [ally ink, enemy ink]
         "test": {
             "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackJump.png")).convert_alpha()],
@@ -56,7 +59,10 @@ images = {
         }
     },
     "splatFont2": pygame.font.Font(getPath("images/Splatfont2.ttf"), 30),
-    "splatFont1": pygame.font.Font(getPath("images/Splatoon1.otf"), 20)
+    "splatFont1": pygame.font.Font(getPath("images/Splatoon1.otf"), 20),
+    "particles": {
+        "sparkle": pygame.image.load(getPath("images/particles/sparkle.png"))
+    }
 }
 
 pygame.display.set_icon(images["playerSquid"])
@@ -170,6 +176,44 @@ def getInked(pos):
     if color == getAdjecent(inkColor) or color == getDarkened(getAdjecent(inkColor)):  # jump pad color
         return 2
     return 0
+
+cans = []
+class SpecialCan:
+    def __init__(self, x, y):
+        global cans
+        self.rect = pygame.Rect(x - 8, y- 8, 16, 16)
+        cans.append(self)
+        self.image = images["can"]
+        self.sparkleTime = random.randint(30,60)
+
+    def draw(self, sc, camera):
+        sc.blit(self.image, [self.rect[0] - camera.x, self.rect[1] - camera.y])
+        self.sparkleTime -= 1
+
+        if self.sparkleTime <= 0:
+            Sparkle(self.rect[0] + random.randint(0,16), self.rect[1] + random.randint(0, 16))
+            self.sparkleTime = random.randint(30, 60)
+
+sparkles = []
+class Sparkle:
+    def __init__(self, x, y, color=None):
+        global sparkles
+        self.pos = [x, y]
+        self.image = images["particles"]["sparkle"].copy()
+        self.life = 60
+        self.image = pygame.transform.rotate(self.image, random.randint(0, 359))
+        if color == None:
+            color = list(map(lambda x: random.randint(100,255), [0,0,0]))
+        self.image.fill(color, special_flags=pygame.BLEND_MULT)
+        sparkles.append(self)
+
+    def update(self, sc, camera):
+        self.life -= 1
+        self.image.set_alpha(self.life * 10)
+        sc.blit(self.image, [self.pos[0] - camera.x - 4, self.pos[1] - camera.y - 4])
+
+        if self.life <= 0:
+            sparkles.remove(self)
 
 class Player:
     def __init__(self, x, y):
@@ -380,6 +424,8 @@ class Player:
 player = Player(1, 1)
 track = images["tracks"]["test"]
 
+SpecialCan(0, 0)
+
 def recolorStage(c):
     global bgEnemy
     global bgAlly
@@ -422,6 +468,12 @@ while True:
 
     player.update()
     player.draw()
+
+    for i in reversed(cans):
+        i.draw(sc, camera)
+
+    for i in reversed(sparkles):
+        i.update(sc, camera)
 
     pygame.display.flip()
     dt = c.tick(60)
