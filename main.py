@@ -163,6 +163,8 @@ optionsMenu.add.button("back", optionsBack)
 
 menu = mainMenu
 
+specials = ["kraken"] #to do: kraken, reef slider, bubbler
+
 def getInked(pos):
     try:
         color = sc.get_at(
@@ -185,6 +187,11 @@ class SpecialCan:
         cans.append(self)
         self.image = images["can"]
         self.sparkleTime = random.randint(30,60)
+
+    def update(self, p):
+        if p.rect.colliderect(self.rect):
+            cans.remove(self)
+            p.special = random.choice(specials)
 
     def draw(self, sc, camera):
         sc.blit(self.image, [self.rect[0] - camera.x, self.rect[1] - camera.y])
@@ -249,6 +256,10 @@ class Player:
         self.droneLaunch = 1200
         self.lastSafePos = pygame.Vector2(x, y)
         self.droneDir = 0
+
+        #special related variables
+        self.sparkleTime = random.randint(30, 60)
+        self.special = None
 
     def update(self):
         self.submerged = False
@@ -382,6 +393,12 @@ class Player:
             sc.blit(drone, [(self.dronePos.x - camera.x - drone.get_width()/2), (self.dronePos.y - camera.y - drone.get_height()/2)])
 
     def draw(self):
+        self.sparkleTime -= 1
+
+        if self.sparkleTime <= 0 and self.special is not None and not self.dead:
+            Sparkle(self.rect[0] + random.randint(-8,8), self.rect[1] + random.randint(-8,8), inkColor)
+            self.sparkleTime = random.randint(15, 30)
+
         damage = overlay
         damage.set_alpha(round((1- (self.health / self.maxHealth))*255))
         sc.blit(damage, [0, 0])
@@ -470,6 +487,7 @@ while True:
     player.draw()
 
     for i in reversed(cans):
+        i.update(player)
         i.draw(sc, camera)
 
     for i in reversed(sparkles):
