@@ -1,3 +1,4 @@
+import math
 import random
 
 import pygame
@@ -62,6 +63,13 @@ images = {
     "splatFont1": pygame.font.Font(getPath("images/Splatoon1.otf"), 20),
     "particles": {
         "sparkle": pygame.image.load(getPath("images/particles/sparkle.png"))
+    },
+    "specials": {
+        "kraken": {
+            "eyes": pygame.image.load(getPath("images/special/kraken/eyes.png")),
+            "body": pygame.image.load(getPath("images/special/kraken/body.png")),
+            "tentacle": pygame.image.load(getPath("images/special/kraken/tentacle.png"))
+        }
     }
 }
 
@@ -260,8 +268,18 @@ class Player:
         #special related variables
         self.sparkleTime = random.randint(30, 60)
         self.special = None
+        self.specialTime = -1
+
+        #kraken related
+        self.tentacleSway = 0
 
     def update(self):
+        if self.specialTime > 0 and self.special is not None:
+            match self.special:
+                case "kraken":
+                    self.kraken()
+                    return
+
         self.submerged = False
         self.cooldown -= dt
         self.rolling -= dt
@@ -380,10 +398,45 @@ class Player:
             self.health += dt / 4
             self.health = min(self.health, self.maxHealth)
 
+        if keys[pygame.K_LSHIFT] and self.special is not None and self.rolling <= 0:
+            match self.special:
+                case "kraken":
+                    self.specialTime = 7500
+                    self.charge = 0
+                    self.charging = False
+
         screenMouse = pygame.mouse.get_pos() + camera
 
         camera.x = self.rect.x - (sc.get_width() / 2) if cameraStyle == 0 else ((self.rect.x + screenMouse[0]) / 2) - (sc.get_width() / 2)  # set camera position
         camera.y = self.rect.y - (sc.get_height() / 2) if cameraStyle == 0 else ((self.rect.y + screenMouse[1]) / 2) - (sc.get_height() / 2)
+
+    def kraken(self):
+        self.specialTime -= dt
+        if self.specialTime <= 0:
+            self.special = None
+        self.health = max(1, self.health + 1)
+
+        self.directionWanted = (pygame.mouse.get_pressed(3)[0] - keys[pygame.K_SPACE]) * (self.charge < 150)
+        move = (pygame.mouse.get_pos() + camera) - pygame.Vector2(self.rect.x,
+                                                                  self.rect.y)  # the vector of where the player wants to move
+        self.angle = move.angle_to(pygame.Vector2(1, 0))  # the angle this would make us face
+        if move.magnitude() != 0: move = move.normalize()  # normalize the vector (unless its 0 because that causes an error)
+
+        move *= self.directionWanted
+
+        self.vel.x = approach(self.vel.x, move.x * (self.maxSp * 1.2), self.accel * 1.1)
+        self.vel.y = approach(self.vel.y, move.y * (self.maxSp * 1.2), self.accel * 1.1)
+
+        self.rect.x += (
+                    self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
+        self.rect.y += (self.vel.y * dt)
+
+        screenMouse = pygame.mouse.get_pos() + camera
+
+        camera.x = self.rect.x - (sc.get_width() / 2) if cameraStyle == 0 else ((self.rect.x + screenMouse[0]) / 2) - (
+                    sc.get_width() / 2)  # set camera position
+        camera.y = self.rect.y - (sc.get_height() / 2) if cameraStyle == 0 else ((self.rect.y + screenMouse[1]) / 2) - (
+                    sc.get_height() / 2)
 
     def drawDrone(self):
         if self.droneTime > 0:
@@ -392,7 +445,34 @@ class Player:
 
             sc.blit(drone, [(self.dronePos.x - camera.x - drone.get_width()/2), (self.dronePos.y - camera.y - drone.get_height()/2)])
 
+    def drawKraken(self):
+        self.tentacleSway += 0.01 + ((self.vel.magnitude() > 0) * 0.05)
+        eyes = pygame.transform.rotate(images["specials"]["kraken"]["eyes"], self.angle)
+        tentAngle = math.degrees(math.sin(self.tentacleSway)) * 0.1
+        tentacle = pygame.transform.rotate(images["specials"]["kraken"]["tentacle"], self.angle + tentAngle)
+        tentacle.fill(inkColor, special_flags=pygame.BLEND_MULT)
+        tentacle2 = pygame.transform.rotate(pygame.transform.flip(images["specials"]["kraken"]["tentacle"],0,1), self.angle - tentAngle)
+        tentacle2.fill(inkColor, special_flags=pygame.BLEND_MULT)
+        body = pygame.transform.rotate(images["specials"]["kraken"]["body"], self.angle)
+        body.fill(inkColor, special_flags=pygame.BLEND_MULT)
+        sc.blit(tentacle, [(self.rect.x - camera.x) - (tentacle.get_width() / 2),
+                       (self.rect.y - camera.y) - (tentacle.get_height() / 2)])
+        sc.blit(tentacle2, [(self.rect.x - camera.x) - (tentacle2.get_width() / 2),
+                           (self.rect.y - camera.y) - (tentacle2.get_height() / 2)])
+        sc.blit(body, [(self.rect.x - camera.x) - (body.get_width() / 2),
+                             (self.rect.y - camera.y) - (body.get_height() / 2)])
+        sc.blit(eyes, [(self.rect.x - camera.x) - (eyes.get_width() / 2),
+                             (self.rect.y - camera.y) - (eyes.get_height() / 2)])
+        inkTrail(32, getDarkened(inkColor), [self.rect.x, self.rect.y])
+
     def draw(self):
+
+        if self.specialTime > 0 and self.special is not None:
+            match self.special:
+                case "kraken":
+                    self.drawKraken()
+                    return
+
         self.sparkleTime -= 1
 
         if self.sparkleTime <= 0 and self.special is not None and not self.dead:
@@ -437,6 +517,27 @@ class Player:
         # pygame.draw.rect(sc, [255, 100, 0], center)
         self.drawDrone()
 
+particles = []
+class inkTrail:
+    def __init__(self, size, color, pos, life = 750):
+        self.pos = pygame.Vector2(pos[0], pos[1])
+        self.color = color
+        self.radius = size
+        self.life = life
+        particles.append(self)
+
+    def draw(self):
+        self.life -= dt
+        c = self.color
+        alpha = min(1,self.life / 50) * 255
+        if self.life <= 0:
+            particles.remove(self)
+
+        drawsurf = pygame.Surface([self.radius, self.radius])
+        pygame.draw.ellipse(drawsurf, c, [0, 0, self.radius, self.radius])
+        drawsurf.set_colorkey((0, 0, 0))
+        drawsurf.set_alpha(alpha)
+        sc.blit(drawsurf, (self.pos.x - camera.x - (self.radius / 2), (self.pos.y - camera.y) - (self.radius / 2)))
 
 player = Player(1, 1)
 track = images["tracks"]["test"]
@@ -482,6 +583,9 @@ while True:
     sc.blit(bgEnemy, camera * -1)
     sc.blit(bgAlly, camera * -1)
     sc.blit(bgJump, camera * -1)
+
+    for i in reversed(particles):
+        i.draw()
 
     player.update()
     player.draw()
