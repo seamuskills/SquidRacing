@@ -548,8 +548,6 @@ class inkTrail:
 player = Player(1, 1)
 track = tracks["test"]
 
-SpecialCan(0, 0)
-
 def recolorStage(c):
     global bgEnemy
     global bgAlly
@@ -567,8 +565,10 @@ def loadStage(trackName):
     global track
     track = tracks[trackName]
     global player
+    global cans
 
     recolorStage(inkColor)
+    cans = []
     for i in track["cans"]:
         SpecialCan(i[0], i[1])
 
@@ -587,7 +587,7 @@ while True:
         pygame.display.set_caption("Squid Racing    Menu")
         menu.mainloop(sc)
         if menu is None:
-            player = Player(track["spawn"][0],track["spawn"][1])
+            loadStage("test")
         continue
     else:
         pygame.display.set_caption("Squid Racing    " + track["displayName"])
