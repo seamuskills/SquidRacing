@@ -52,13 +52,6 @@ images = {
     "spawnDrone": pygame.image.load(getPath("images/drone.png")),
     "respawnArrow": pygame.image.load(getPath("images/respawnArrow.png")),
     "can": pygame.image.load(getPath("images/specialCan.png")),
-    "tracks": {  # format: [ally ink, enemy ink]
-        "test": {
-            "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackJump.png")).convert_alpha()],
-            "spawn": [122, 346],
-            "displayName": "testing grounds"
-        }
-    },
     "splatFont2": pygame.font.Font(getPath("images/Splatfont2.ttf"), 30),
     "splatFont1": pygame.font.Font(getPath("images/Splatoon1.otf"), 20),
     "particles": {
@@ -70,6 +63,19 @@ images = {
             "body": pygame.image.load(getPath("images/special/kraken/body.png")),
             "tentacle": pygame.image.load(getPath("images/special/kraken/tentacle.png"))
         }
+    }
+}
+
+tracks = {  # format: [ally ink, enemy ink]
+    "test": {
+        "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackJump.png")).convert_alpha()],
+        "spawn": [122, 346],
+        "displayName": "testing grounds",
+        "cans": [
+            (1234, 137),
+            (531, 340),
+            (470, 890)
+        ]
     }
 }
 
@@ -540,7 +546,7 @@ class inkTrail:
         sc.blit(drawsurf, (self.pos.x - camera.x - (self.radius / 2), (self.pos.y - camera.y) - (self.radius / 2)))
 
 player = Player(1, 1)
-track = images["tracks"]["test"]
+track = tracks["test"]
 
 SpecialCan(0, 0)
 
@@ -557,7 +563,18 @@ def recolorStage(c):
     bgJump = track["images"][2].copy()
     bgJump.fill(getAdjecent(c), special_flags=pygame.BLEND_MULT)
 
-recolorStage(inkColor)
+def loadStage(trackName):
+    global track
+    track = tracks[trackName]
+    global player
+
+    recolorStage(inkColor)
+    for i in track["cans"]:
+        SpecialCan(i[0], i[1])
+
+    player = Player(track["spawn"][0],track["spawn"][1])
+
+loadStage("test")
 
 while True:
     for event in pygame.event.get():
