@@ -1,12 +1,13 @@
+import colorsys
 import math
+import os
 import random
+import sys
 
 import pygame
 import pygame_menu
-import os
-import sys
-import colorsys
-#compile again with the console command:
+
+# compile again with the console command:
 # pyinstaller --noconfirm --onefile --windowed --add-data "./images;images/"  "./main.py"
 # command generated via auto-py-to-exe
 
@@ -28,6 +29,7 @@ bgJump = 0
 
 camera = pygame.Vector2(0, 0)
 
+
 def getPath(relative_path):
     base_path = ""
     try:
@@ -35,6 +37,7 @@ def getPath(relative_path):
     except:
         base_path = os.path.abspath(".")
     return os.path.join(base_path, relative_path)
+
 
 images = {
     "playerRipple": pygame.image.load(getPath("images/ripple.png")),
@@ -68,7 +71,9 @@ images = {
 
 tracks = {  # format: [ally ink, enemy ink]
     "test": {
-        "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha(), pygame.image.load(getPath("images/testTrackJump.png")).convert_alpha()],
+        "images": [pygame.image.load(getPath("images/testTrack.png")).convert_alpha(),
+                   pygame.image.load(getPath("images/testTrackEnemy.png")).convert_alpha(),
+                   pygame.image.load(getPath("images/testTrackJump.png")).convert_alpha()],
         "spawn": [122, 346],
         "displayName": "testing grounds",
         "cans": [
@@ -85,22 +90,27 @@ track = None
 
 keys = []
 
+
 def getDarkened(c, value=50):
     return c - pygame.Color(value, value, value, 0)
+
 
 def getInvert(c):
     invert = pygame.Color(255, 255, 255) - c
     invert.a = 255
     return invert
 
+
 def getAdjecent(c):
     color = c.hsva
-    color = colorsys.hsv_to_rgb(((color[0] + 50) % 360) / 360, color[1]/100, color[2]/100)
-    color = [color[0]*255, color[1]*255, color[2]*255]
+    color = colorsys.hsv_to_rgb(((color[0] + 50) % 360) / 360, color[1] / 100, color[2] / 100)
+    color = [color[0] * 255, color[1] * 255, color[2] * 255]
     return pygame.Color(color)
+
 
 overlay = images["damageOverlay"].convert_alpha()
 overlay.fill(getInvert(inkColor), special_flags=pygame.BLEND_MULT)
+
 
 def approach(x, y, amm):
     if x < y:
@@ -108,6 +118,7 @@ def approach(x, y, amm):
     if x > y:
         return max(x - amm, y)
     return y
+
 
 menuTheme = pygame_menu.Theme(
     background_color=(255, 165, 0),
@@ -119,10 +130,12 @@ menuTheme = pygame_menu.Theme(
     title_bar_style=pygame_menu.widgets.MENUBAR_STYLE_TITLE_ONLY_DIAGONAL
 )
 
+
 def startGame():
     global menu
     menu.disable()
     menu = None
+
 
 def options():
     global menu
@@ -130,11 +143,13 @@ def options():
     menu = optionsMenu
     menu.enable()
 
+
 def optionsBack():
     global menu
     menu.disable()
     menu = mainMenu
     menu.enable()
+
 
 def changeControls(k, v):
     if v == "arrow":
@@ -148,9 +163,11 @@ def changeControls(k, v):
         pygame_menu.controls.KEY_RIGHT = pygame.K_RIGHT
         pygame_menu.controls.KEY_LEFT = pygame.K_LEFT
 
+
 def cameraControl(k, v):
     global cameraStyle
     cameraStyle = v
+
 
 def changeColor(v):
     global inkColor
@@ -163,6 +180,7 @@ def changeColor(v):
     except:
         pass
 
+
 mainMenu = pygame_menu.Menu("Squid Racing", theme=menuTheme, width=screenSize[0], height=screenSize[1])
 mainMenu.add.button("Start", startGame)
 mainMenu.add.button("Options", options)
@@ -170,19 +188,23 @@ mainMenu.add.button("Quit", pygame_menu.events.EXIT)
 mainMenu.center_content()
 
 optionsMenu = pygame_menu.Menu("Options", theme=menuTheme, width=screenSize[0], height=screenSize[1])
-optionsMenu.add.color_input("ink color: ", pygame_menu.widgets.COLORINPUT_TYPE_RGB, default= (inkColor[0], inkColor[1], inkColor[2]), onchange=changeColor)
-optionsMenu.add.selector("menu controls: ", [("arrow keys", "wasd"), ("wasd", "arrow")], onchange=changeControls)  #not sure why, but I must make it return the other option to the function or else the widget will display the control scheme that is not active.
-optionsMenu.add.selector("camera system: ", [("player centered", False), ("direction dynamic", True)], onchange=cameraControl)
+optionsMenu.add.color_input("ink color: ", pygame_menu.widgets.COLORINPUT_TYPE_RGB,
+                            default=(inkColor[0], inkColor[1], inkColor[2]), onchange=changeColor)
+optionsMenu.add.selector("menu controls: ", [("arrow keys", "wasd"), ("wasd", "arrow")],
+                         onchange=changeControls)  # not sure why, but I must make it return the other option to the function or else the widget will display the control scheme that is not active.
+optionsMenu.add.selector("camera system: ", [("player centered", False), ("direction dynamic", True)],
+                         onchange=cameraControl)
 optionsMenu.add.button("back", optionsBack)
 
 menu = mainMenu
 
-specials = ["kraken"] #to do: kraken, reef slider, bubbler
+specials = ["kraken"]  # to do: kraken, reef slider, bubbler
+
 
 def getInked(pos):
     try:
         color = sc.get_at(
-        [round(pos[0] - camera.x), round(pos[1] - camera.y)])
+            [round(pos[0] - camera.x), round(pos[1] - camera.y)])
     except:
         return 0
     if color == inkColor or color == getDarkened(inkColor):  # player color
@@ -193,14 +215,17 @@ def getInked(pos):
         return 2
     return 0
 
+
 cans = []
+
+
 class SpecialCan:
     def __init__(self, x, y):
         global cans
-        self.rect = pygame.Rect(x - 8, y- 8, 16, 16)
+        self.rect = pygame.Rect(x - 8, y - 8, 16, 16)
         cans.append(self)
         self.image = images["can"]
-        self.sparkleTime = random.randint(30,60)
+        self.sparkleTime = random.randint(30, 60)
 
     def update(self, p):
         if p.rect.colliderect(self.rect):
@@ -212,10 +237,13 @@ class SpecialCan:
         self.sparkleTime -= 1
 
         if self.sparkleTime <= 0:
-            Sparkle(self.rect[0] + random.randint(0,16), self.rect[1] + random.randint(0, 16))
+            Sparkle(self.rect[0] + random.randint(0, 16), self.rect[1] + random.randint(0, 16))
             self.sparkleTime = random.randint(30, 60)
 
+
 sparkles = []
+
+
 class Sparkle:
     def __init__(self, x, y, color=None):
         global sparkles
@@ -224,7 +252,7 @@ class Sparkle:
         self.life = 60
         self.image = pygame.transform.rotate(self.image, random.randint(0, 359))
         if color == None:
-            color = list(map(lambda x: random.randint(100,255), [0,0,0]))
+            color = list(map(lambda x: random.randint(100, 255), [0, 0, 0]))
         self.image.fill(color, special_flags=pygame.BLEND_MULT)
         sparkles.append(self)
 
@@ -235,6 +263,7 @@ class Sparkle:
 
         if self.life <= 0:
             sparkles.remove(self)
+
 
 class Player:
     def __init__(self, x, y):
@@ -256,7 +285,7 @@ class Player:
         # roll animation
         self.rollFrame = 0
         self.nextFrame = 50
-        self.frameOrder = [0, 1, 2, 4, 5, 4, 3, 1, 0]  #  which image from the array of images is to be used next
+        self.frameOrder = [0, 1, 2, 4, 5, 4, 3, 1, 0]  # which image from the array of images is to be used next
 
         self.health = 500
         self.maxHealth = 500
@@ -271,12 +300,12 @@ class Player:
         self.lastSafePos = pygame.Vector2(x, y)
         self.droneDir = 0
 
-        #special related variables
+        # special related variables
         self.sparkleTime = random.randint(30, 60)
         self.special = None
         self.specialTime = -1
 
-        #kraken related
+        # kraken related
         self.tentacleSway = 0
 
     def update(self):
@@ -336,11 +365,12 @@ class Player:
         self.angle = move.angle_to(pygame.Vector2(1, 0))  # the angle this would make us face
         if move.magnitude() != 0: move = move.normalize()  # normalize the vector (unless its 0 because that causes an error)
 
-        canRoll = abs(self.vel.angle_to((1,0)) - self.angle) > 80 and self.vel.magnitude() > (self.maxSp / 2) and self.rolling <= -50
+        canRoll = abs(self.vel.angle_to((1, 0)) - self.angle) > 80 and self.vel.magnitude() > (
+                    self.maxSp / 2) and self.rolling <= -50
 
         if canRoll and keys[pygame.K_SPACE]:
             self.rolling = self.maxRoll
-            self.rollSpeed = self.vel.magnitude()*0.86
+            self.rollSpeed = self.vel.magnitude() * 0.86
             self.vel = move.copy()
             self.vel.scale_to_length(self.rollSpeed)
             self.rollFrame = 0
@@ -362,7 +392,7 @@ class Player:
 
         if pygame.mouse.get_pressed(3)[2] and self.cooldown <= 0 and not self.charging and self.rolling <= 0:
             self.charge += dt
-            self.charge = min(self.charge,self. chargeMax * 1.1)
+            self.charge = min(self.charge, self.chargeMax * 1.1)
         else:
             if self.charge > 0:
                 overInk = getInked([self.rect.x, self.rect.y])
@@ -382,13 +412,18 @@ class Player:
 
         if self.rolling <= 0: move *= self.directionWanted
 
-        if self.rolling <= 0: self.vel.x = approach(self.vel.x, move.x * (self.maxSp / (2 - (self.rolling > 0 or self.submerged))**2), self.accel * (2 - self.submerged)**2)  # multiply normalized vector by our acceleration amount and add it to velocity
-        if self.rolling <= 0: self.vel.y = approach(self.vel.y, move.y * (self.maxSp / (2 - (self.rolling > 0 or self.submerged))**2), self.accel * (2 - self.submerged)**2)
+        if self.rolling <= 0: self.vel.x = approach(self.vel.x, move.x * (
+                    self.maxSp / (2 - (self.rolling > 0 or self.submerged)) ** 2), self.accel * (
+                                                                2 - self.submerged) ** 2)  # multiply normalized vector by our acceleration amount and add it to velocity
+        if self.rolling <= 0: self.vel.y = approach(self.vel.y, move.y * (
+                    self.maxSp / (2 - (self.rolling > 0 or self.submerged)) ** 2),
+                                                    self.accel * (2 - self.submerged) ** 2)
         # if self.vel.magnitude() != 0:
         #     self.vel.x = self.vel.x * min(self.vel.magnitude(),
         #                               self.maxSp) / self.vel.magnitude()  # set the mag of the velocity vector so it's never above maxSp
         #     self.vel.y = self.vel.y * min(self.vel.magnitude(), self.maxSp) / self.vel.magnitude()
-        self.rect.x += (self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
+        self.rect.x += (
+                    self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
         self.rect.y += (self.vel.y * dt)
 
         if getInked([self.rect.x, self.rect.y]) == -1 and self.rolling <= 0:
@@ -413,8 +448,10 @@ class Player:
 
         screenMouse = pygame.mouse.get_pos() + camera
 
-        camera.x = self.rect.x - (sc.get_width() / 2) if cameraStyle == 0 else ((self.rect.x + screenMouse[0]) / 2) - (sc.get_width() / 2)  # set camera position
-        camera.y = self.rect.y - (sc.get_height() / 2) if cameraStyle == 0 else ((self.rect.y + screenMouse[1]) / 2) - (sc.get_height() / 2)
+        camera.x = self.rect.x - (sc.get_width() / 2) if cameraStyle == 0 else ((self.rect.x + screenMouse[0]) / 2) - (
+                    sc.get_width() / 2)  # set camera position
+        camera.y = self.rect.y - (sc.get_height() / 2) if cameraStyle == 0 else ((self.rect.y + screenMouse[1]) / 2) - (
+                    sc.get_height() / 2)
 
     def kraken(self):
         self.specialTime -= dt
@@ -434,22 +471,23 @@ class Player:
         self.vel.y = approach(self.vel.y, move.y * (self.maxSp * 1.2), self.accel * 1.1)
 
         self.rect.x += (
-                    self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
+                self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
         self.rect.y += (self.vel.y * dt)
 
         screenMouse = pygame.mouse.get_pos() + camera
 
         camera.x = self.rect.x - (sc.get_width() / 2) if cameraStyle == 0 else ((self.rect.x + screenMouse[0]) / 2) - (
-                    sc.get_width() / 2)  # set camera position
+                sc.get_width() / 2)  # set camera position
         camera.y = self.rect.y - (sc.get_height() / 2) if cameraStyle == 0 else ((self.rect.y + screenMouse[1]) / 2) - (
-                    sc.get_height() / 2)
+                sc.get_height() / 2)
 
     def drawDrone(self):
         if self.droneTime > 0:
             drone = images["spawnDrone"].copy()
             drone = pygame.transform.rotate(drone, self.droneDir)
 
-            sc.blit(drone, [(self.dronePos.x - camera.x - drone.get_width()/2), (self.dronePos.y - camera.y - drone.get_height()/2)])
+            sc.blit(drone, [(self.dronePos.x - camera.x - drone.get_width() / 2),
+                            (self.dronePos.y - camera.y - drone.get_height() / 2)])
 
     def drawKraken(self):
         self.tentacleSway += 0.01 + ((self.vel.magnitude() > 0) * 0.05)
@@ -457,18 +495,19 @@ class Player:
         tentAngle = math.degrees(math.sin(self.tentacleSway)) * 0.1
         tentacle = pygame.transform.rotate(images["specials"]["kraken"]["tentacle"], self.angle + tentAngle)
         tentacle.fill(inkColor, special_flags=pygame.BLEND_MULT)
-        tentacle2 = pygame.transform.rotate(pygame.transform.flip(images["specials"]["kraken"]["tentacle"],0,1), self.angle - tentAngle)
+        tentacle2 = pygame.transform.rotate(pygame.transform.flip(images["specials"]["kraken"]["tentacle"], 0, 1),
+                                            self.angle - tentAngle)
         tentacle2.fill(inkColor, special_flags=pygame.BLEND_MULT)
         body = pygame.transform.rotate(images["specials"]["kraken"]["body"], self.angle)
         body.fill(inkColor, special_flags=pygame.BLEND_MULT)
         sc.blit(tentacle, [(self.rect.x - camera.x) - (tentacle.get_width() / 2),
-                       (self.rect.y - camera.y) - (tentacle.get_height() / 2)])
+                           (self.rect.y - camera.y) - (tentacle.get_height() / 2)])
         sc.blit(tentacle2, [(self.rect.x - camera.x) - (tentacle2.get_width() / 2),
-                           (self.rect.y - camera.y) - (tentacle2.get_height() / 2)])
+                            (self.rect.y - camera.y) - (tentacle2.get_height() / 2)])
         sc.blit(body, [(self.rect.x - camera.x) - (body.get_width() / 2),
-                             (self.rect.y - camera.y) - (body.get_height() / 2)])
+                       (self.rect.y - camera.y) - (body.get_height() / 2)])
         sc.blit(eyes, [(self.rect.x - camera.x) - (eyes.get_width() / 2),
-                             (self.rect.y - camera.y) - (eyes.get_height() / 2)])
+                       (self.rect.y - camera.y) - (eyes.get_height() / 2)])
         inkTrail(32, getDarkened(inkColor), [self.rect.x, self.rect.y])
 
     def draw(self):
@@ -482,11 +521,11 @@ class Player:
         self.sparkleTime -= 1
 
         if self.sparkleTime <= 0 and self.special is not None and not self.dead:
-            Sparkle(self.rect[0] + random.randint(-8,8), self.rect[1] + random.randint(-8,8), inkColor)
+            Sparkle(self.rect[0] + random.randint(-8, 8), self.rect[1] + random.randint(-8, 8), inkColor)
             self.sparkleTime = random.randint(15, 30)
 
         damage = overlay
-        damage.set_alpha(round((1- (self.health / self.maxHealth))*255))
+        damage.set_alpha(round((1 - (self.health / self.maxHealth)) * 255))
         sc.blit(damage, [0, 0])
         if self.dead:
             if self.droneTime <= 0:
@@ -495,7 +534,8 @@ class Player:
                 arrowTint = arrow.copy()
                 arrowTint.fill(inkColor, special_flags=pygame.BLEND_MULT)
                 sc.blit(arrowTint, [screenSize[0] * 0.8, screenSize[1] * 0.75])
-                sc.blit(arrow, [screenSize[0] * 0.8, screenSize[1] * 0.75], [0, 0, arrow.get_width() * respawnPercent, arrow.get_height()])
+                sc.blit(arrow, [screenSize[0] * 0.8, screenSize[1] * 0.75],
+                        [0, 0, arrow.get_width() * respawnPercent, arrow.get_height()])
             self.drawDrone()
             return
         # center = self.rect.copy()
@@ -511,21 +551,26 @@ class Player:
                 drawSprite.fill([chargePercent, chargePercent, chargePercent], special_flags=pygame.BLEND_MULT)
 
         if self.rolling >= 0:
-            drawSprite = pygame.transform.rotate(images["playerRoll"][self.frameOrder[self.rollFrame]], self.vel.angle_to(pygame.Vector2(1, 0)))
+            drawSprite = pygame.transform.rotate(images["playerRoll"][self.frameOrder[self.rollFrame]],
+                                                 self.vel.angle_to(pygame.Vector2(1, 0)))
 
         drawSprite.fill(inkColor, special_flags=pygame.BLEND_MULT)
         if self.submerged and not self.rolling >= 0:
             speedPercent = (self.vel.magnitude() / self.maxSp)
-            drawSprite = pygame.transform.scale(drawSprite, [drawSprite.get_width() * speedPercent, drawSprite.get_height() * speedPercent])
+            drawSprite = pygame.transform.scale(drawSprite, [drawSprite.get_width() * speedPercent,
+                                                             drawSprite.get_height() * speedPercent])
             drawSprite.set_alpha(speedPercent * 255)
         sc.blit(drawSprite, [(self.rect.x - camera.x) - (drawSprite.get_width() / 2),
                              (self.rect.y - camera.y) - (drawSprite.get_height() / 2)])
         # pygame.draw.rect(sc, [255, 100, 0], center)
         self.drawDrone()
 
+
 particles = []
+
+
 class inkTrail:
-    def __init__(self, size, color, pos, life = 750):
+    def __init__(self, size, color, pos, life=750):
         self.pos = pygame.Vector2(pos[0], pos[1])
         self.color = color
         self.radius = size
@@ -535,7 +580,7 @@ class inkTrail:
     def draw(self):
         self.life -= dt
         c = self.color
-        alpha = min(1,self.life / 50) * 255
+        alpha = min(1, self.life / 50) * 255
         if self.life <= 0:
             particles.remove(self)
 
@@ -545,8 +590,10 @@ class inkTrail:
         drawsurf.set_alpha(alpha)
         sc.blit(drawsurf, (self.pos.x - camera.x - (self.radius / 2), (self.pos.y - camera.y) - (self.radius / 2)))
 
+
 player = Player(1, 1)
 track = tracks["test"]
+
 
 def recolorStage(c):
     global bgEnemy
@@ -561,6 +608,7 @@ def recolorStage(c):
     bgJump = track["images"][2].copy()
     bgJump.fill(getAdjecent(c), special_flags=pygame.BLEND_MULT)
 
+
 def loadStage(trackName):
     global track
     track = tracks[trackName]
@@ -572,7 +620,8 @@ def loadStage(trackName):
     for i in track["cans"]:
         SpecialCan(i[0], i[1])
 
-    player = Player(track["spawn"][0],track["spawn"][1])
+    player = Player(track["spawn"][0], track["spawn"][1])
+
 
 loadStage("test")
 
