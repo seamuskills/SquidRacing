@@ -65,6 +65,10 @@ images = {
             "eyes": pygame.image.load(getPath("images/special/kraken/eyes.png")),
             "body": pygame.image.load(getPath("images/special/kraken/body.png")),
             "tentacle": pygame.image.load(getPath("images/special/kraken/tentacle.png"))
+        },
+        "soda": {
+            "icon": pygame.image.load(getPath("images/special/soda/icon.png")),
+            "arrows": pygame.image.load(getPath("images/special/soda/arrows.png"))
         }
     }
 }
@@ -198,7 +202,7 @@ optionsMenu.add.button("back", optionsBack)
 
 menu = mainMenu
 
-specials = ["kraken"]  # to do: kraken, reef slider, bubbler
+specials = ["kraken", "soda"]  # to do: kraken
 
 
 def getInked(pos):
@@ -304,6 +308,8 @@ class Player:
         self.sparkleTime = random.randint(30, 60)
         self.special = None
         self.specialTime = -1
+        self.arrow = images["specials"]["soda"]["arrows"].copy()
+        self.soda = False
 
         # kraken related
         self.tentacleSway = 0
@@ -314,6 +320,11 @@ class Player:
                 case "kraken":
                     self.kraken()
                     return
+                case "soda":
+                    self.specialTime -= dt
+                    if self.specialTime <= 0:
+                        self.soda = False
+                        self.special = None
 
         self.submerged = False
         self.cooldown -= dt
@@ -327,6 +338,7 @@ class Player:
             if self.droneLaunch > self.droneTime > 0:
                 move = ((pygame.mouse.get_pos() + camera) - self.dronePos)
                 self.dead = False
+                if self.soda: self.specialTime /= 2
                 self.rolling = 500
                 self.rollSpeed = self.maxSp
                 self.vel = move.copy()
@@ -342,7 +354,7 @@ class Player:
                 if self.droneTime > self.droneLaunch:
                     self.droneDir = ((pygame.mouse.get_pos() + camera) - self.dronePos).angle_to([1, 0])
 
-            self.respawnTime -= dt
+            self.respawnTime -= dt * (1 + self.soda)  # double the respawn speed if soda is active
             if self.respawnTime <= 0 and self.droneTime < 0:
                 self.health = self.maxHealth
                 self.vel.x = 0
@@ -366,11 +378,11 @@ class Player:
         if move.magnitude() != 0: move = move.normalize()  # normalize the vector (unless its 0 because that causes an error)
 
         canRoll = abs(self.vel.angle_to((1, 0)) - self.angle) > 80 and self.vel.magnitude() > (
-                    self.maxSp / 2) and self.rolling <= -50
+                self.maxSp / 2) and self.rolling <= -50
 
         if canRoll and keys[pygame.K_SPACE]:
             self.rolling = self.maxRoll
-            self.rollSpeed = self.vel.magnitude() * 0.86
+            self.rollSpeed = self.vel.magnitude() * (0.86 if not self.soda else 0.95)
             self.vel = move.copy()
             self.vel.scale_to_length(self.rollSpeed)
             self.rollFrame = 0
@@ -391,7 +403,7 @@ class Player:
             self.vel.scale_to_length(self.rollSpeed)
 
         if pygame.mouse.get_pressed(3)[2] and self.cooldown <= 0 and not self.charging and self.rolling <= 0:
-            self.charge += dt
+            self.charge += dt * (1 + (self.soda / 2))  # soda makes this 1.5x faster.
             self.charge = min(self.charge, self.chargeMax * 1.1)
         else:
             if self.charge > 0:
@@ -413,17 +425,17 @@ class Player:
         if self.rolling <= 0: move *= self.directionWanted
 
         if self.rolling <= 0: self.vel.x = approach(self.vel.x, move.x * (
-                    self.maxSp / (2 - (self.rolling > 0 or self.submerged)) ** 2), self.accel * (
-                                                                2 - self.submerged) ** 2)  # multiply normalized vector by our acceleration amount and add it to velocity
+                self.maxSp / (2 - (self.rolling > 0 or self.submerged)) ** 2), self.accel * (
+                                                            2 - self.submerged) ** 2)  # multiply normalized vector by our acceleration amount and add it to velocity
         if self.rolling <= 0: self.vel.y = approach(self.vel.y, move.y * (
-                    self.maxSp / (2 - (self.rolling > 0 or self.submerged)) ** 2),
-                                                    self.accel * (2 - self.submerged) ** 2)
+                self.maxSp / (2 - (self.rolling > 0 or self.submerged)) ** 2),
+                                                    self.accel * (2 - self.submerged + self.soda) ** 2)
         # if self.vel.magnitude() != 0:
         #     self.vel.x = self.vel.x * min(self.vel.magnitude(),
         #                               self.maxSp) / self.vel.magnitude()  # set the mag of the velocity vector so it's never above maxSp
         #     self.vel.y = self.vel.y * min(self.vel.magnitude(), self.maxSp) / self.vel.magnitude()
         self.rect.x += (
-                    self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
+                self.vel.x * dt)  # add velocity to position keeping deltaTime in mind so it's frame rate independent
         self.rect.y += (self.vel.y * dt)
 
         if getInked([self.rect.x, self.rect.y]) == -1 and self.rolling <= 0:
@@ -445,13 +457,16 @@ class Player:
                     self.specialTime = 7500
                     self.charge = 0
                     self.charging = False
+                case "soda":
+                    self.specialTime = 8000
+                    self.soda = True;
 
         screenMouse = pygame.mouse.get_pos() + camera
 
         camera.x = self.rect.x - (sc.get_width() / 2) if cameraStyle == 0 else ((self.rect.x + screenMouse[0]) / 2) - (
-                    sc.get_width() / 2)  # set camera position
+                sc.get_width() / 2)  # set camera position
         camera.y = self.rect.y - (sc.get_height() / 2) if cameraStyle == 0 else ((self.rect.y + screenMouse[1]) / 2) - (
-                    sc.get_height() / 2)
+                sc.get_height() / 2)
 
     def kraken(self):
         self.specialTime -= dt
@@ -517,6 +532,12 @@ class Player:
                 case "kraken":
                     self.drawKraken()
                     return
+                case "soda":
+                    if not self.dead:
+                        arrowCopy = self.arrow.copy()
+                        arrowCopy.fill(inkColor, special_flags=pygame.BLEND_MULT)
+                        arrowCopy.set_alpha(128)
+                        sc.blit(arrowCopy, [self.rect.x - camera.x - 8, self.rect.y - camera.y - 8])
 
         self.sparkleTime -= 1
 
